@@ -44,7 +44,8 @@ def gen_cutlass_fused_moe_sm120_module(use_fast_build: bool = False) -> JitSpec:
         supported_major_versions=[12]
     )
 
-    return gen_cutlass_fused_moe_module(nvcc_flags, "120", use_fast_build)
+    return gen_cutlass_fused_moe_module(nvcc_flags, "120", use_fast_build,
+                                        architectures="120;120-real;121;121-real")
 
 
 def gen_cutlass_fused_moe_sm103_module(use_fast_build: bool = False) -> JitSpec:
@@ -106,11 +107,15 @@ def gen_cutlass_fused_moe_sm89_module(use_fast_build: bool = False) -> JitSpec:
 
 
 def gen_cutlass_fused_moe_module(
-    nvcc_flags: List[str], device_arch: str, use_fast_build: bool = False
+    nvcc_flags: List[str], device_arch: str, use_fast_build: bool = False,
+    architectures: str = None,
 ) -> JitSpec:
     """
     Generate a JitSpec for the cutlass fused moe module.
     """
+    if architectures is None:
+        architectures = f"{device_arch};{device_arch}-real"
+
     # Use FLASHINFER_GEN_SRC_DIR (user's writable cache) instead of FLASHINFER_CSRC_DIR
     # (package directory which may be read-only after installation)
     output_dir = (
@@ -123,7 +128,7 @@ def gen_cutlass_fused_moe_module(
 
         generate_gemm_operations(
             output_dir,
-            f"{device_arch};{device_arch}-real",
+            architectures,
         )
 
     except Exception as e:
