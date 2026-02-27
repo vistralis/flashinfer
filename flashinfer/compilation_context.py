@@ -24,6 +24,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _get_arch_suffix(major: int, minor: int) -> str:
+    """Determine the architecture suffix ('a' or 'f') based on GPU capability and CUDA version.
+
+    For SM >= 9, architectures use the 'a' (architecture-specific) suffix by default.
+    For SM120 and SM121 (Blackwell), the 'f' (feature-set / family) suffix is
+    preferred when the CUDA toolkit supports it, as it enables additional
+    instructions such as native FP4 conversion (cvt.rn.satfinite.e2m1x2.f32).
+
+    SM120 (GeForce RTX 50 / workstation): requires CUDA >= 12.9 for 'f' suffix
+    SM121 (DGX Spark GB10): requires CUDA >= 13.0 for 'f' suffix
+    """
+    from flashinfer.utils import version_at_least
+
+    cuda_version = torch.version.cuda
+    suffix = "a"
+    if cuda_version is not None:
+        try:
+            if major == 12 and minor == 0 and version_at_least(cuda_version, "12.9"):
+                suffix = "f"
+            elif major == 12 and minor == 1 and version_at_least(cuda_version, "13.0"):
+                suffix = "f"
+        except Exception:
+            pass
+    return str(minor) + suffix
+
+
 class CompilationContext:
     COMMON_NVCC_FLAGS = [
         "-DFLASHINFER_ENABLE_FP8_E8M0",
@@ -41,10 +67,8 @@ class CompilationContext:
             try:
                 for device in range(torch.cuda.device_count()):
                     major, minor = torch.cuda.get_device_capability(device)
-                    if major >= 12:
-                        minor = str(minor) + "f"
-                    elif major >= 9:
-                        minor = str(minor) + "a"
+                    if major >= 9:
+                        minor = _get_arch_suffix(major, minor)
                     self.TARGET_CUDA_ARCHS.add((int(major), str(minor)))
             except Exception as e:
                 logger.warning(f"Failed to get device capability: {e}.")

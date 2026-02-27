@@ -559,7 +559,17 @@ def is_sm120a_supported(device: torch.device) -> bool:
     return major == 12 and minor == 0 and version_at_least(torch.version.cuda, "12.8")
 
 
+def is_sm120f_supported(device: torch.device) -> bool:
+    major, minor = get_compute_capability(device)
+    return major == 12 and minor == 0 and version_at_least(torch.version.cuda, "12.9")
+
+
 def is_sm121a_supported(device: torch.device) -> bool:
+    major, minor = get_compute_capability(device)
+    return major == 12 and minor == 1 and version_at_least(torch.version.cuda, "13.0")
+
+
+def is_sm121f_supported(device: torch.device) -> bool:
     major, minor = get_compute_capability(device)
     return major == 12 and minor == 1 and version_at_least(torch.version.cuda, "13.0")
 
@@ -638,7 +648,12 @@ def set_log_level(lvl_str: str) -> None:
 def device_support_pdl(device: torch.device) -> bool:
     if device.type != "cuda":
         return False
-    major, _ = get_compute_capability(device)
+    major, minor = get_compute_capability(device)
+    # SM121 (GB10/DGX Spark) does not support concurrent PDL execution.
+    # Enabling PDL on SM121 causes WARP_ILLEGAL_INSTRUCTION during
+    # CUDAGraph replay of CUTLASS grouped GEMM kernels.
+    if major == 12 and minor == 1:
+        return False
     return major >= 9
 
 
