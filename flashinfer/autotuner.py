@@ -492,6 +492,15 @@ class AutoTuner:
                             except torch.cuda.OutOfMemoryError:
                                 raise
                             except Exception as e:
+                                # Fix: Clear CUDA error state after failed tactic profiling.
+                                # Matches TensorRT-LLM gemmPluginProfiler.cpp pattern:
+                                #   cudaGetLastError() // Reset the last cudaError to cudaSuccess
+                                try:
+                                    torch.cuda.synchronize()
+                                except RuntimeError:
+                                    pass  # Expected — sync itself may raise the pending error
+                                # Clear the sticky CUDA error to cudaSuccess
+                                torch.cuda.cudart().cudaGetLastError()
                                 shapes = self._get_input_sizes(tensors)
                                 logger.warning(
                                     f"[Autotuner]: Skipping tactic {r} {tac}, due to failure while profiling: {e}"
