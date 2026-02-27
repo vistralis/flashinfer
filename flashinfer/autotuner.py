@@ -500,7 +500,7 @@ class AutoTuner:
                                 except RuntimeError:
                                     pass  # Expected — sync itself may raise the pending error
                                 # Clear the sticky CUDA error to cudaSuccess
-                                torch.cuda.cudart().cudaGetLastError()
+                                import ctypes; ctypes.CDLL("libcudart.so").cudaGetLastError()
                                 shapes = self._get_input_sizes(tensors)
                                 logger.warning(
                                     f"[Autotuner]: Skipping tactic {r} {tac}, due to failure while profiling: {e}"
