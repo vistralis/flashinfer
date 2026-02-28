@@ -35,15 +35,19 @@ def _get_arch_suffix(major: int, minor: int) -> str:
     SM120 (GeForce RTX 50 / workstation): requires CUDA >= 12.9 for 'f' suffix
     SM121 (DGX Spark GB10): requires CUDA >= 13.0 for 'f' suffix
     """
-    from flashinfer.utils import version_at_least
+    # NOTE: We inline the version comparison here instead of importing
+    # flashinfer.utils.version_at_least to avoid a circular import:
+    #   compilation_context → flashinfer.utils → flashinfer.jit.core → compilation_context
+    from packaging import version as pkg_version
 
     cuda_version = torch.version.cuda
     suffix = "a"
     if cuda_version is not None:
         try:
-            if major == 12 and minor == 0 and version_at_least(cuda_version, "12.9"):
+            cv = pkg_version.parse(cuda_version)
+            if major == 12 and minor == 0 and cv >= pkg_version.parse("12.9"):
                 suffix = "f"
-            elif major == 12 and minor == 1 and version_at_least(cuda_version, "13.0"):
+            elif major == 12 and minor == 1 and cv >= pkg_version.parse("13.0"):
                 suffix = "f"
         except Exception:
             pass
